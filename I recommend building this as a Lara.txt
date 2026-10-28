@@ -1,0 +1,1012 @@
+I recommend building this as a Laravel-based, multi-tenant Cloud PBX management platform, powered by an open-source PBX such as Asterisk + FreePBX, with a modern dashboard inspired by 3CX.
+
+Laravel will manage the dashboard, customers, extensions, call routing, billing, permissions, integrations, and settings. Asterisk will handle the actual calls, SIP registration, IVR, queues, recordings, and telephony.
+
+Below is a complete master prompt you can paste into Cursor, Claude Code, Windsurf, or another AI coding agent.
+
+# MASTER DEVELOPMENT PROMPT — CLOUD PBX SAAS PLATFORM
+
+## 1. Project Overview
+
+Act as a senior Laravel architect, VoIP engineer, UI/UX designer, DevOps engineer, and full-stack SaaS developer.
+
+Build a complete, production-oriented, multi-tenant Cloud PBX management platform inspired by the capabilities of 3CX, FreePBX, and modern business communication systems.
+
+The application must use **Laravel as the main backend and administrative framework**, with an open-source PBX engine for telephony.
+
+Create an original, premium interface rather than copying any existing vendor's proprietary dashboard or branding.
+
+The system must support multiple organizations, each with independent users, extensions, phone numbers, call flows, queues, recordings, reports, billing, and integrations.
+
+This must be a working application, not just a UI prototype.
+
+## 2. Technology Stack
+
+Use:
+
+- Backend: Laravel 12 or latest compatible stable version
+- PHP: 8.3+
+- Frontend: Vue 3, TypeScript, Inertia.js
+- Styling: Tailwind CSS
+- UI components: shadcn-vue or equivalent
+- Database: PostgreSQL
+- Cache and queues: Redis
+- Realtime: Laravel Reverb and Laravel Echo
+- Authentication: Laravel Fortify or equivalent
+- Authorization: Laravel Policies and Spatie Laravel Permission
+- API authentication: Laravel Sanctum
+- PBX engine: Asterisk with PJSIP
+- PBX management: Asterisk ARI, AMI, and controlled configuration provisioning
+- Optional PBX distribution: FreePBX, integrated through supported interfaces
+- WebRTC: SIP.js
+- SIP transport: TLS and WSS
+- Media: RTP/SRTP
+- Deployment: Ubuntu Linux, Nginx, Supervisor, systemd
+- Monitoring: Prometheus/Grafana-compatible metrics
+- Testing: Pest/PHPUnit, Vitest, Playwright
+
+Important: Asterisk should be the default telephony engine. FreePBX integration should be optional because its configuration ownership and dialplan management require special handling. Never write directly to FreePBX-managed configuration or databases without a supported integration strategy.
+
+## 3. System Architecture
+
+Design the platform with these layers:
+
+**Laravel SaaS application**
+
+- Super Admin Portal
+- Organization Admin Portal
+- Employee Portal
+- Realtime Call Center Dashboard
+- Customer Billing Portal
+- REST API
+- Third-Party Integration Hub
+
+**PBX integration service**
+
+- Asterisk connection manager
+- AMI event listener
+- ARI application controller
+- PJSIP provisioning manager
+- Call event processor
+- Recording synchronization worker
+- Call detail record importer
+- Health monitoring service
+
+**Telephony infrastructure**
+
+- Asterisk PBX
+- SIP trunks
+- WebRTC endpoints
+- DID routing
+- IVR and dialplan
+- Queues
+- Voicemail
+- Call recording
+- Conferencing
+
+**Data and background processing**
+
+- PostgreSQL
+- Redis
+- Laravel queues
+- WebSocket event broadcasting
+- Secure file storage
+- Scheduled reporting jobs
+
+Keep telephony operations independent of normal HTTP request processing.
+
+Implement event-driven synchronization and automatic reconnection after PBX disconnections.
+
+Support a future architecture where multiple Asterisk servers can be managed from one Laravel control panel.
+
+## 4. Multi-Tenant SaaS Management
+
+Build a Super Admin dashboard with:
+
+- Total organizations
+- Active and suspended organizations
+- Total registered extensions
+- Total concurrent calls
+- Total SIP trunks
+- PBX server health
+- Monthly recurring revenue
+- Subscription management
+- Organization onboarding
+- Customer provisioning
+- Plan and package management
+- Usage limits
+- Billing and invoices
+- Payment tracking
+- System alerts
+- Audit logs
+- Support tickets
+
+Each organization must have strict data isolation.
+
+Use tenant-aware database queries, policies, jobs, events, file storage, WebSocket channels, and API authorization.
+
+Never allow an organization administrator to access another organization's extensions, recordings, trunks, or call history.
+
+## 5. Main Dashboard
+
+Build a professional, responsive dashboard with a left sidebar, top navigation, and interactive content area.
+
+Sidebar:
+
+1. Dashboard
+2. Live Calls
+3. Web Phone
+4. Extensions
+5. Departments
+6. IVR Builder
+7. Call Routing
+8. Call Queues
+9. Ring Groups
+10. SIP Trunks
+11. DID Numbers
+12. Call History
+13. Call Recordings
+14. Voicemail
+15. Conferences
+16. Contacts
+17. Analytics & Reports
+18. Integrations
+19. Billing
+20. Users & Permissions
+21. Settings
+
+Dashboard widgets:
+
+- Active calls
+- Incoming calls today
+- Outgoing calls today
+- Missed calls
+- Answered calls
+- Registered extensions
+- Available agents
+- Busy agents
+- Average call duration
+- Average waiting time
+- Service level
+- Call volume chart
+- Recent call activity
+- SIP trunk status
+- PBX server status
+
+Support date filters, automatic refresh, responsive charts, and realtime updates.
+
+Use an elegant blue, navy, white, and cyan design system with optional dark mode.
+
+## 6. Extension Management
+
+Create full extension management.
+
+Features:
+
+- Create, edit, disable, and delete extensions
+- Automatically assign extension numbers
+- Assign extensions to employees
+- SIP username and secure password
+- PJSIP endpoint configuration
+- WebRTC support
+- Device registration status
+- Extension presence
+- Caller ID configuration
+- Voicemail configuration
+- Call forwarding
+- Do Not Disturb
+- Call waiting
+- Ring timeout
+- Outbound dialing permissions
+- Department assignment
+- Multiple-device support
+- QR-based device provisioning where supported
+- Extension activity logs
+
+When an extension is created, provision it through the PBX integration service and verify the resulting state.
+
+Show provisioning failures and provide safe retry functionality.
+
+## 7. Visual IVR Builder
+
+Build a drag-and-drop IVR flow editor.
+
+Support nodes for:
+
+- Incoming DID
+- Welcome announcement
+- Play audio
+- Text-to-speech through optional provider
+- Digit selection
+- Department routing
+- Extension routing
+- Ring group
+- Call queue
+- Voicemail
+- Business hours
+- Holiday routing
+- External forwarding
+- Repeat menu
+- Invalid selection
+- Timeout
+- Hangup
+
+Example:
+
+Incoming Call → Welcome Message → IVR
+
+Press 1 → Sales
+
+Press 2 → Support
+
+Press 3 → Accounts
+
+Press 4 → General
+
+Allow uploading and recording custom voice prompts.
+
+Validate IVR graphs before publishing.
+
+Include draft, publish, rollback, and version history.
+
+Generate appropriate Asterisk dialplan configuration through a controlled deployment process.
+
+## 8. Live Call Monitoring
+
+Build a realtime call monitoring page.
+
+Display:
+
+- Caller number
+- Called DID
+- Destination extension
+- Agent name
+- Department
+- Call direction
+- Call status
+- Call duration
+- Queue
+- PBX server
+- Recording status
+
+Call statuses:
+
+- Ringing
+- Connected
+- On Hold
+- Transferring
+- Completed
+- Failed
+
+Authorized supervisors may:
+
+- View live call details
+- Monitor queue activity
+- Initiate permitted call transfers
+- Disconnect calls when authorized
+- Use supervised monitoring features only where legally permitted and configured
+
+Use AMI events, ARI events where appropriate, Laravel queues, and WebSockets.
+
+Do not simulate live calls in production.
+
+## 9. Browser-Based Web Phone
+
+Build an integrated browser softphone using SIP.js and WebRTC.
+
+Features:
+
+- SIP registration
+- Incoming call popup
+- Outgoing dialing
+- Answer and reject
+- Mute and unmute
+- Hold and resume
+- DTMF keypad
+- Blind transfer
+- Attended transfer
+- Call history
+- Contact search
+- Device selection
+- Microphone permission handling
+- Connection status
+- Network error notifications
+
+Implement secure WSS signaling and SRTP media.
+
+Include NAT traversal, STUN/TURN configuration, and diagnostics.
+
+Do not expose PBX administrative credentials to the browser.
+
+## 10. Call Queues and Agent Management
+
+Build a call center management module.
+
+Features:
+
+- Create unlimited queues subject to subscription limits
+- Assign agents
+- Agent login/logout
+- Pause/unpause
+- Queue priority
+- Ring strategies
+- Maximum waiting time
+- Queue announcements
+- Music on hold
+- Overflow destinations
+- Callback request workflows
+- Abandoned call tracking
+- Queue performance reports
+
+Agent states:
+
+- Available
+- Busy
+- Ringing
+- Paused
+- Offline
+
+Provide a realtime queue wallboard.
+
+## 11. Call Recording Management
+
+Features:
+
+- Automatic recording policies
+- Manual recording when supported
+- Recording metadata
+- Secure playback
+- Download permissions
+- Search and filtering
+- Recording retention policies
+- Storage quotas
+- Recording access logs
+- Secure object storage integration
+- Recording deletion workflows
+
+Support configurable recording consent announcements and jurisdiction-specific compliance policies.
+
+Recordings must not be publicly accessible.
+
+Use authorized streaming or temporary signed URLs.
+
+## 12. Voicemail and Email Transcription
+
+Build voicemail management.
+
+Features:
+
+- Individual voicemail boxes
+- Voicemail greetings
+- Email notifications
+- Audio attachments
+- Secure playback
+- Voicemail retention
+- Unread voicemail count
+- Voicemail-to-email
+
+Add optional speech-to-text providers:
+
+- OpenAI-compatible transcription service
+- Google Cloud Speech-to-Text
+- Azure Speech
+- Local Whisper service
+
+Make transcription asynchronous.
+
+Allow transcription providers to be disabled and ensure customer data is not sent externally without explicit configuration and authorization.
+
+## 13. SIP Trunk Management
+
+Create a complete SIP trunk configuration module.
+
+Fields:
+
+- Provider name
+- SIP host
+- SIP port
+- Authentication username
+- Encrypted authentication secret
+- Registration mode
+- Transport protocol
+- Outbound proxy
+- Caller ID
+- Codecs
+- DTMF mode
+- NAT settings
+- Maximum concurrent calls
+- Incoming route mapping
+- Outgoing route mapping
+- Trunk priority
+- Failover trunk
+
+Features:
+
+- Registration status
+- Connectivity diagnostics
+- Trunk failover
+- Call routing tests
+- Configuration validation
+- Credential rotation
+- Change history
+
+Support integration with third-party SIP providers through generic SIP trunk configuration and provider-specific adapters.
+
+Do not hardcode a particular provider.
+
+## 14. DID Number Management
+
+Build DID management.
+
+Features:
+
+- Add and assign DID numbers
+- Assign numbers to organizations
+- Configure inbound destinations
+- Route to IVR
+- Route to queues
+- Route to extensions
+- Route to ring groups
+- Business hours routing
+- Holiday routing
+- Caller ID rules
+- Number inventory
+- Number status
+
+Allow integration with external DID providers when APIs are available.
+
+## 15. Call Routing and Forwarding
+
+Create a visual routing configuration system.
+
+Support:
+
+- Inbound routes
+- Outbound routes
+- Time-based routing
+- Holiday schedules
+- Department routing
+- Extension forwarding
+- No-answer forwarding
+- Busy forwarding
+- Unavailable forwarding
+- External number forwarding
+- Trunk failover
+- Emergency call handling
+
+Validate dial patterns and permissions.
+
+Prevent unauthorized international or premium-rate dialing.
+
+Ensure emergency call handling follows applicable carrier and local requirements.
+
+## 16. Reporting and Analytics
+
+Build reporting pages for:
+
+- Incoming calls
+- Outgoing calls
+- Missed calls
+- Abandoned calls
+- Call duration
+- Agent performance
+- Department performance
+- Queue performance
+- Trunk usage
+- DID usage
+- Peak calling hours
+- Answer rates
+- Average handling time
+- Call waiting time
+- Call costs
+
+Filters:
+
+- Today
+- Yesterday
+- Last 7 days
+- Last 30 days
+- Custom date range
+- Agent
+- Department
+- Queue
+- DID
+- Call direction
+
+Support CSV, Excel, and PDF exports.
+
+Use actual call detail records and queue events.
+
+## 17. Third-Party Integration Hub
+
+Create a dedicated Integrations page.
+
+Each integration must support:
+
+- Enable/disable
+- Connection configuration
+- Credential storage
+- Test connection
+- Sync status
+- Webhook configuration
+- Event logs
+- Retry failed operations
+- Last synchronization time
+- Permission controls
+
+Integration categories:
+
+**CRM**
+
+- HubSpot
+- Salesforce
+- Zoho CRM
+- Custom CRM REST API
+
+**Automation**
+
+- n8n
+- Zapier
+- Make
+- Generic webhooks
+
+**Messaging**
+
+- WhatsApp Business Platform
+- Email SMTP
+- SMS gateways
+
+**Storage**
+
+- Amazon S3
+- S3-compatible storage
+- Local storage
+
+**Speech and AI**
+
+- Speech transcription APIs
+- Local Whisper
+- Text-to-speech services
+- Optional AI call summaries
+
+**Telephony**
+
+- Generic SIP trunk providers
+- Asterisk servers
+- Supported FreePBX interfaces
+- External call event APIs
+
+Build an extensible provider adapter architecture.
+
+Each provider should have its own configuration schema, authentication strategy, API client, webhook handler, and health checks.
+
+Do not claim a provider is connected until its credentials and connection have been verified.
+
+## 18. Webhooks and Public API
+
+Build a secure, versioned REST API.
+
+Example endpoints:
+
+- GET /api/v1/extensions
+- POST /api/v1/extensions
+- GET /api/v1/calls
+- GET /api/v1/queues
+- GET /api/v1/recordings
+- GET /api/v1/agents
+- POST /api/v1/call-actions
+- GET /api/v1/trunks
+
+Build outbound webhook events:
+
+- call.started
+- call.ringing
+- call.answered
+- call.completed
+- call.missed
+- call.recording.ready
+- voicemail.received
+- extension.registered
+- extension.unregistered
+- queue.call.abandoned
+
+Use HMAC signatures, timestamps, event IDs, retries, and replay protection.
+
+Enforce tenant-scoped API access.
+
+## 19. Complete Settings Module
+
+Create the following settings pages.
+
+**General Settings**
+
+- Organization name
+- Company logo
+- Time zone
+- Language
+- Date format
+- Currency
+- Business contact information
+
+**PBX Settings**
+
+- PBX server configuration
+- SIP domains
+- SIP transports
+- RTP port ranges
+- Codec settings
+- NAT settings
+- STUN/TURN
+- Dialplan defaults
+- Extension numbering
+- Call limits
+
+**Call Settings**
+
+- Default caller ID
+- Call timeout
+- Hold music
+- Recording defaults
+- Forwarding rules
+- Transfer rules
+- Dialing permissions
+
+**Business Hours**
+
+- Opening hours
+- Closing hours
+- Weekend schedules
+- Holiday schedules
+- After-hours routing
+
+**Security**
+
+- Two-factor authentication
+- Password policies
+- Session management
+- IP allowlists
+- API token management
+- Login activity
+- Audit logs
+
+**Notifications**
+
+- Missed call alerts
+- Voicemail alerts
+- Queue alerts
+- Trunk failure alerts
+- Email configuration
+- Webhook alerts
+
+**Storage**
+
+- Recording storage
+- Backup storage
+- Retention rules
+- Storage usage
+- Encryption configuration
+
+**Integrations**
+
+- API credentials
+- Webhook URLs
+- OAuth connections
+- Provider settings
+- Integration logs
+
+**Billing**
+
+- Subscription package
+- Active extensions
+- Usage limits
+- Invoices
+- Payments
+- Billing contacts
+
+**Advanced**
+
+- Diagnostics
+- PBX synchronization
+- Job queue status
+- Server monitoring
+- Configuration backups
+- System logs
+- Feature flags
+
+Every settings page must include validation, save functionality, loading states, error handling, permission enforcement, and audit logging.
+
+## 20. Packages and Billing
+
+Build configurable subscription packages.
+
+Example starter package:
+
+- 3 users
+- Basic IVR
+- Call transfers
+- Call recording
+- Live monitoring
+- Manager reports
+- Dedicated DID support
+- Monthly price: LKR 7,500
+
+Allow Super Admin to modify:
+
+- Package name
+- Monthly price
+- Annual price
+- Maximum extensions
+- Concurrent call limits
+- Recording storage
+- Included features
+- Trial period
+- Overage charges
+
+Implement invoices, payment status, subscription changes, and suspension workflows.
+
+Use pluggable payment gateway adapters.
+
+## 21. User Roles
+
+Implement:
+
+- Platform Super Admin
+- Organization Owner
+- Organization Administrator
+- Call Center Manager
+- Supervisor
+- Agent
+- Standard Employee
+- Billing Manager
+
+Create granular permissions for every module and sensitive action.
+
+Enforce authorization in backend services, not only in the frontend.
+
+## 22. Database Design
+
+Create migrations, models, relationships, factories, and seeders for:
+
+- organizations
+- users
+- roles
+- permissions
+- subscriptions
+- packages
+- package_features
+- pbx_servers
+- pbx_connections
+- extensions
+- extension_devices
+- departments
+- sip_trunks
+- did_numbers
+- inbound_routes
+- outbound_routes
+- ivr_flows
+- ivr_nodes
+- ivr_versions
+- ring_groups
+- call_queues
+- queue_agents
+- calls
+- call_events
+- call_recordings
+- voicemails
+- contacts
+- business_hours
+- holidays
+- integrations
+- integration_credentials
+- webhooks
+- webhook_deliveries
+- invoices
+- payments
+- notifications
+- audit_logs
+- system_settings
+
+Add appropriate indexes, foreign keys, tenant isolation, and lifecycle policies.
+
+Use encryption for sensitive configuration.
+
+## 23. UI/UX Requirements
+
+Create a premium SaaS interface.
+
+Visual direction:
+
+- Modern 3CX-inspired usability
+- Original branding and components
+- Navy and bright-blue accents
+- White background
+- Rounded cards
+- Professional typography
+- Responsive sidebar
+- Realtime status indicators
+- Smooth navigation
+- Skeleton loaders
+- Empty states
+- Error states
+- Toast notifications
+- Confirmation dialogs
+- Global search
+- Dark mode
+
+Create reusable tables, filters, charts, forms, modal dialogs, and status components.
+
+Every button and form must have real functionality or be clearly marked as unavailable.
+
+Do not generate static-only dashboards.
+
+## 24. Security and Reliability
+
+Implement:
+
+- Strict tenant isolation
+- HTTPS everywhere
+- SIP TLS and SRTP where supported
+- Encrypted secrets
+- Least-privilege PBX credentials
+- Firewall recommendations
+- Rate limiting
+- CSRF protection
+- Webhook signature verification
+- Audit trails
+- Secure recording access
+- Backup and restore procedures
+- PBX configuration validation
+- Safe deployment and rollback
+- Anti-toll-fraud controls
+- International dialing restrictions
+- Concurrency limits
+- Health checks
+- Reconnection and retry logic
+
+Never allow arbitrary shell commands from user input.
+
+Never expose Asterisk AMI, ARI, or database management interfaces publicly without appropriate network isolation and authentication.
+
+## 25. Deployment
+
+Prepare production deployment for a Linux VPS.
+
+Include:
+
+- Nginx configuration
+- PHP-FPM
+- PostgreSQL
+- Redis
+- Laravel queue workers
+- Laravel scheduler
+- Laravel Reverb
+- Asterisk
+- TLS certificates
+- Firewall configuration
+- SIP/RTP network requirements
+- Environment variables
+- Secure secret management
+- Automated database migrations
+- Backups
+- Monitoring
+- Log rotation
+
+Document how to deploy Laravel and Asterisk on separate servers, which should be the recommended production architecture.
+
+Provide a development environment with local dependencies and a PBX simulator or test adapter when Asterisk is unavailable.
+
+## 26. Testing Requirements
+
+Write automated tests for:
+
+- Tenant isolation
+- Authentication
+- Authorization
+- Extension provisioning
+- IVR validation
+- Call routing
+- Queue configuration
+- SIP trunk settings
+- API authentication
+- Webhook security
+- Recording permissions
+- Billing limits
+- PBX event processing
+- Failed PBX synchronization
+- Realtime dashboard updates
+
+Provide end-to-end tests for major user workflows.
+
+## 27. Implementation Instructions
+
+Do not attempt to generate the entire platform as disconnected sample code.
+
+First:
+
+1. Analyze the requirements.
+2. Propose the system architecture.
+3. Define the database schema.
+4. Define the module boundaries.
+5. Create the Laravel project structure.
+6. Implement authentication and tenant isolation.
+7. Build the reusable dashboard layout.
+8. Implement PBX connection management.
+9. Implement extension provisioning.
+10. Implement live call event synchronization.
+11. Implement SIP trunks, DID routes, and IVR.
+12. Implement queues and recordings.
+13. Implement reports and integrations.
+14. Implement billing and advanced settings.
+15. Add automated tests.
+16. Prepare deployment documentation.
+
+For every implementation phase:
+
+- Create actual working files.
+- Show the relevant file paths.
+- Use clean architecture and Laravel conventions.
+- Include migrations, validation, services, controllers, policies, jobs, events, and frontend components where applicable.
+- Explain environment configuration.
+- Run available tests and report results.
+- Do not invent test results.
+- Do not replace integrations with mock responses in production.
+- Document incomplete features clearly.
+- Preserve existing completed modules.
+- Keep the application runnable after each phase.
+
+## 28. Final Deliverables
+
+Deliver:
+
+1. Complete Laravel application
+2. Vue dashboard and management interfaces
+3. PostgreSQL database migrations
+4. Asterisk integration service
+5. PBX provisioning functionality
+6. Realtime call monitoring
+7. Browser-based softphone
+8. IVR flow builder
+9. SIP trunk management
+10. DID management
+11. Call recording management
+12. Reporting dashboard
+13. Third-party integration hub
+14. Full settings module
+15. SaaS subscription management
+16. REST API documentation
+17. Automated tests
+18. Production deployment instructions
+19. Administrator documentation
+20. User documentation
+
+**Begin by designing the complete architecture, database relationships, and Laravel folder structure. Then implement Phase 1 as working code. Continue module by module without sacrificing security, functionality, or maintainability.**
+
+## Recommended architecture
+
+Laravel + Vue 3 Dashboard
+
+Admin · Agents · Settings · Billing
+
+Laravel API + PBX Integration Service
+
+ARI · AMI · Provisioning · WebSockets
+
+Asterisk PBX Server
+
+PJSIP · IVR · Queues · RTP · Recordings
+
+SIP Providers
+
+DID & Trunks
+
+PostgreSQL + Redis
+
+Data & Realtime
+
+For your project, I would start with Laravel + Asterisk directly, then add FreePBX support as a separate integration. This gives you more control over the dashboard, settings, and multi-customer SaaS functionality.
+
+One important distinction: the dashboard alone cannot make phone calls. You will need a working Asterisk server, SIP trunks, phone numbers, and appropriate network configuration.
+
+Which version should we focus on first?
+
+&#x20;Full SaaS platform Dashboard + settings Asterisk integration
