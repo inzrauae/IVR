@@ -4,6 +4,7 @@ namespace App\Http\Controllers\OrganizationSettings;
 
 use App\Authorization\Permission;
 use App\Http\Controllers\Controller;
+use App\Jobs\PushRouting;
 use App\Models\BusinessHour;
 use App\Models\Holiday;
 use App\Support\Audit;
@@ -50,6 +51,8 @@ class BusinessHoursController extends Controller
 
         Audit::record('settings.business_hours_updated', $this->tenant->get());
 
+        PushRouting::forCurrentTenant();
+
         return back()->with('success', 'Business hours saved.');
     }
 
@@ -70,6 +73,8 @@ class BusinessHoursController extends Controller
         $holiday = Holiday::create($validated);
         Audit::record('settings.holiday_added', $holiday, ['name' => $holiday->name, 'date' => $validated['date']]);
 
+        PushRouting::forCurrentTenant();
+
         return back()->with('success', "{$holiday->name} added.");
     }
 
@@ -81,6 +86,8 @@ class BusinessHoursController extends Controller
         $record = Holiday::findOrFail($holiday);
         $record->delete();
         Audit::record('settings.holiday_removed', null, ['name' => $record->name]);
+
+        PushRouting::forCurrentTenant();
 
         return back()->with('success', "{$record->name} removed.");
     }

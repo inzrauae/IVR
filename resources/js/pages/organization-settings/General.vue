@@ -61,7 +61,12 @@ const removeLogo = () => router.delete(route('organization-settings.logo.destroy
 <template>
     <Head title="General settings" />
 
-    <OrganizationSettingsLayout :section="section" title="General" description="Your organization's identity, locale and contact details" :can-manage="canManage">
+    <OrganizationSettingsLayout
+        :section="section"
+        title="General"
+        description="Your organization's identity, locale and contact details"
+        :can-manage="canManage"
+    >
         <div class="space-y-6">
             <Card>
                 <CardContent class="flex flex-wrap items-center gap-5 p-5">

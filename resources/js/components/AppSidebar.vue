@@ -13,8 +13,8 @@ const homeHref = computed(() => (page.props.auth.is_platform_admin && !page.prop
 </script>
 
 <template>
-    <Sidebar collapsible="icon" variant="inset">
-        <SidebarHeader>
+    <Sidebar collapsible="icon" variant="sidebar">
+        <SidebarHeader class="border-b border-sidebar-border px-3 py-4">
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
@@ -30,7 +30,7 @@ const homeHref = computed(() => (page.props.auth.is_platform_admin && !page.prop
             <NavMain :groups="page.props.navigation" />
         </SidebarContent>
 
-        <SidebarFooter>
+        <SidebarFooter class="border-t border-sidebar-border p-3">
             <NavUser />
         </SidebarFooter>
     </Sidebar>

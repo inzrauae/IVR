@@ -57,7 +57,11 @@ const submit = () =>
 const checking = ref<number | null>(null);
 const checkHealth = (server: PbxServerRow) => {
     checking.value = server.id;
-    router.post(route('platform.pbx-servers.health', { pbxServer: server.id }), {}, { preserveScroll: true, onFinish: () => (checking.value = null) });
+    router.post(
+        route('platform.pbx-servers.health', { pbxServer: server.id }),
+        {},
+        { preserveScroll: true, onFinish: () => (checking.value = null) },
+    );
 };
 
 const formatTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'medium' }) : 'Never');
@@ -69,12 +73,19 @@ const selectClass =
 <template>
     <Head title="PBX servers" />
 
-    <AppLayout :breadcrumbs="[{ title: 'Platform', href: '/platform' }, { title: 'PBX Servers', href: '/platform/pbx-servers' }]">
+    <AppLayout
+        :breadcrumbs="[
+            { title: 'Platform', href: '/platform' },
+            { title: 'PBX Servers', href: '/platform/pbx-servers' },
+        ]"
+    >
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <div class="flex flex-wrap items-end justify-between gap-3">
                 <div>
                     <h1 class="text-xl font-semibold tracking-tight">PBX servers</h1>
-                    <p class="text-sm text-muted-foreground">Asterisk servers managed by this control panel. Health is checked every minute by the scheduler.</p>
+                    <p class="text-sm text-muted-foreground">
+                        Asterisk servers managed by this control panel. Health is checked every minute by the scheduler.
+                    </p>
                 </div>
                 <Button @click="adding = true"><Plus class="size-4" /> Add server</Button>
             </div>
@@ -117,7 +128,9 @@ const selectClass =
                 <CardContent class="flex flex-col items-center gap-3 py-14 text-center">
                     <Server class="size-8 text-muted-foreground" />
                     <p class="font-medium">No PBX servers yet</p>
-                    <p class="max-w-sm text-sm text-muted-foreground">Add an Asterisk server with ARI enabled. Keep ARI and AMI on a private network.</p>
+                    <p class="max-w-sm text-sm text-muted-foreground">
+                        Add an Asterisk server with ARI enabled. Keep ARI and AMI on a private network.
+                    </p>
                 </CardContent>
             </Card>
         </div>
@@ -126,7 +139,9 @@ const selectClass =
             <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-xl">
                 <DialogHeader>
                     <DialogTitle>Add PBX server</DialogTitle>
-                    <DialogDescription>Credentials are encrypted at rest. The connection is verified by the health check, not on save.</DialogDescription>
+                    <DialogDescription
+                        >Credentials are encrypted at rest. The connection is verified by the health check, not on save.</DialogDescription
+                    >
                 </DialogHeader>
                 <form id="add-server" class="grid gap-4 sm:grid-cols-2" @submit.prevent="submit">
                     <div class="grid gap-2 sm:col-span-2">

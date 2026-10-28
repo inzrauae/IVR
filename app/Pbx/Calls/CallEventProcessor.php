@@ -4,10 +4,22 @@ namespace App\Pbx\Calls;
 
 use App\Models\Call;
 use App\Models\CallEvent;
+use App\Models\CallQueue;
+use App\Models\Conference;
+use App\Models\DidNumber;
 use App\Models\Extension;
+use App\Models\IvrMenu;
 use App\Models\Organization;
 use App\Models\PbxServer;
+use App\Models\Recording;
+use App\Models\RingGroup;
+use App\Models\SipTrunk;
+use App\Models\VoicemailMessage;
+use App\Notifications\MissedCall;
+use App\Notifications\VoicemailReceived;
+use App\Support\Webhooks;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Notification;
 
 /**
  * Turns Asterisk AMI events into Call records. Fed by the AMI listener in production and by
@@ -37,6 +49,7 @@ class CallEventProcessor
             'Unhold' => $this->hold($server, $event, false),
             'Hangup' => $this->hangup($server, $event),
             'ContactStatus' => $this->contactStatus($event),
+            'UserEvent' => $this->userEvent($server, $event),
             default => null,
         };
     }
@@ -82,33 +95,9 @@ class CallEventProcessor
 
         if (! $call) {
             // Only the originating leg starts a call; anything else belongs to a call we don't track.
-            if ($uniqueId !== $linkedId || ! ($caller = $this->endpointFromChannel($e['Channel'] ?? ''))) {
+            if ($uniqueId !== $linkedId || ! ($call = $this->startCall($server, $e, $linkedId, $uniqueId))) {
                 return;
             }
-
-            $organization = Organization::find($caller['organization_id']);
-            if (! $organization) {
-                return;
-            }
-
-            $from = $this->extension($caller['organization_id'], $caller['number']);
-            $dialled = $this->dialled($e);
-            $target = $dialled ? $this->extension($organization->id, $dialled) : null;
-
-            $call = Call::create([
-                'organization_id' => $organization->id,
-                'pbx_server_id' => $server->id,
-                'linked_id' => $linkedId,
-                'direction' => $target ? Call::DIRECTION_INTERNAL : Call::DIRECTION_OUTBOUND,
-                'status' => Call::STATUS_RINGING,
-                'from_number' => $caller['number'],
-                'from_name' => $this->callerName($e) ?? $from?->name,
-                'to_number' => $dialled,
-                'from_extension_id' => $from?->id,
-                'to_extension_id' => $target?->id,
-                'active_channels' => [$uniqueId],
-                'started_at' => now(),
-            ]);
 
             $this->record($call, 'Newchannel', $e['Channel'] ?? null, $e);
 
@@ -127,6 +116,62 @@ class CallEventProcessor
 
         $call->save();
         $this->record($call, 'Newchannel', $e['Channel'] ?? null, $e);
+    }
+
+    /**
+     * A call starts on an extension's channel (internal or outbound) or a trunk's (inbound).
+     *
+     * @param  array<string, string>  $e
+     */
+    private function startCall(PbxServer $server, array $e, string $linkedId, string $uniqueId): ?Call
+    {
+        $endpoint = $this->endpointIdFromChannel($e['Channel'] ?? '');
+        $caller = $endpoint ? Extension::parseSipUsername($endpoint) : null;
+        $trunk = $endpoint && ! $caller ? SipTrunk::parseEndpointId($endpoint) : null;
+        $organizationId = $caller['organization_id'] ?? $trunk['organization_id'] ?? null;
+
+        if (! $organizationId || ! Organization::whereKey($organizationId)->exists()) {
+            return null;
+        }
+
+        $dialled = $this->dialled($e);
+
+        if ($trunk) {
+            $did = $dialled ? DidNumber::withoutGlobalScopes()->where('organization_id', $organizationId)->where('number', DidNumber::normalize($dialled))->first() : null;
+            $attributes = [
+                'direction' => Call::DIRECTION_INBOUND,
+                'from_number' => ($e['CallerIDNum'] ?? '') !== '' ? $e['CallerIDNum'] : null,
+                'from_name' => $this->callerName($e),
+                'to_number' => $dialled,
+                'did_number_id' => $did?->id,
+            ];
+        } else {
+            $from = $this->extension($organizationId, $caller['number']);
+            $target = $dialled ? $this->extension($organizationId, $dialled) : null;
+            $internal = $target || ($dialled && $this->isInternalNumber($organizationId, $dialled));
+            $attributes = [
+                'direction' => $internal ? Call::DIRECTION_INTERNAL : Call::DIRECTION_OUTBOUND,
+                'from_number' => $caller['number'],
+                'from_name' => $this->callerName($e) ?? $from?->name,
+                'to_number' => $dialled,
+                'from_extension_id' => $from?->id,
+                'to_extension_id' => $target?->id,
+            ];
+        }
+
+        $call = Call::create([
+            ...$attributes,
+            'organization_id' => $organizationId,
+            'pbx_server_id' => $server->id,
+            'linked_id' => $linkedId,
+            'status' => Call::STATUS_RINGING,
+            'active_channels' => [$uniqueId],
+            'started_at' => now(),
+        ]);
+
+        Webhooks::dispatch($organizationId, 'call.started', ['call' => $call->toPayload()]);
+
+        return $call;
     }
 
     /**
@@ -253,6 +298,86 @@ class CallEventProcessor
         ])->save();
     }
 
+    /**
+     * Recordings and voicemail are announced by the dialplan with UserEvent (see extensions.conf).
+     *
+     * @param  array<string, string>  $e
+     */
+    private function userEvent(PbxServer $server, array $e): void
+    {
+        $organizationId = (int) ($e['Org'] ?? 0);
+        $name = $e['Name'] ?? '';
+
+        if (! $organizationId || $name === '' || ! ($organization = Organization::find($organizationId))) {
+            return;
+        }
+
+        match ($e['UserEvent'] ?? null) {
+            'CloudPBXRecording' => $this->recordingReady($server, $organization, $name, $e),
+            'CloudPBXVoicemail' => $this->voicemailReceived($server, $organization, $name, $e),
+            default => null,
+        };
+    }
+
+    /**
+     * @param  array<string, string>  $e
+     */
+    private function recordingReady(PbxServer $server, Organization $organization, string $name, array $e): void
+    {
+        $call = $this->findCall($server, $e['Linkedid'] ?? '');
+
+        if ($call && $call->organization_id !== $organization->id) {
+            return;
+        }
+
+        $recording = Recording::withoutGlobalScopes()->firstOrCreate(
+            ['pbx_server_id' => $server->id, 'name' => $name],
+            ['organization_id' => $organization->id, 'call_id' => $call?->id, 'duration' => isset($e['Duration']) ? (int) $e['Duration'] : $call?->talk_time],
+        );
+
+        if ($recording->wasRecentlyCreated) {
+            Webhooks::dispatch($organization->id, 'recording.ready', ['recording' => [
+                'id' => $recording->id, 'call_id' => $recording->call_id, 'duration' => $recording->duration,
+            ]]);
+        }
+    }
+
+    /**
+     * @param  array<string, string>  $e
+     */
+    private function voicemailReceived(PbxServer $server, Organization $organization, string $name, array $e): void
+    {
+        $mailbox = Extension::withoutGlobalScopes()->with('user')->where('sip_username', $e['Mailbox'] ?? '')->first();
+
+        if (! $mailbox || $mailbox->organization_id !== $organization->id) {
+            return;
+        }
+
+        $message = VoicemailMessage::withoutGlobalScopes()->firstOrCreate(
+            ['pbx_server_id' => $server->id, 'name' => $name],
+            [
+                'organization_id' => $organization->id,
+                'extension_id' => $mailbox->id,
+                'caller_number' => ($e['CallerNum'] ?? '') ?: null,
+                'caller_name' => $this->callerName(['CallerIDName' => $e['CallerName'] ?? '']),
+                'duration' => isset($e['Duration']) ? (int) $e['Duration'] : null,
+            ],
+        );
+
+        if (! $message->wasRecentlyCreated) {
+            return;
+        }
+
+        Webhooks::dispatch($organization->id, 'voicemail.received', ['voicemail' => [
+            'id' => $message->id, 'extension' => $mailbox->number, 'caller_number' => $message->caller_number, 'duration' => $message->duration,
+        ]]);
+
+        $recipients = array_filter([...($organization->setting('notifications.voicemail_emails') ?? []), $mailbox->user?->email]);
+        if ($recipients) {
+            Notification::route('mail', array_values(array_unique($recipients)))->notify(new VoicemailReceived($message, $mailbox));
+        }
+    }
+
     private function markAnswered(Call $call): void
     {
         if ($call->answered_at || ! $call->isLive()) {
@@ -260,6 +385,7 @@ class CallEventProcessor
         }
 
         $call->forceFill(['status' => Call::STATUS_CONNECTED, 'answered_at' => now()])->save();
+        Webhooks::dispatch($call->organization_id, 'call.answered', ['call' => $call->toPayload()]);
     }
 
     private function finish(Call $call, ?string $cause, ?string $causeText): void
@@ -280,6 +406,15 @@ class CallEventProcessor
             'duration' => max(0, (int) $call->started_at->diffInSeconds($ended)),
             'talk_time' => $call->answered_at ? max(0, (int) $call->answered_at->diffInSeconds($ended)) : 0,
         ])->save();
+
+        Webhooks::dispatch($call->organization_id, 'call.ended', ['call' => $call->toPayload()]);
+
+        if ($status === Call::STATUS_MISSED && $call->direction === Call::DIRECTION_INBOUND) {
+            $recipients = Organization::find($call->organization_id)?->setting('notifications.missed_call_emails') ?? [];
+            if ($recipients) {
+                Notification::route('mail', $recipients)->notify(new MissedCall($call));
+            }
+        }
     }
 
     private function attachCallee(Call $call, string $channel): void
@@ -314,13 +449,37 @@ class CallEventProcessor
     }
 
     /**
+     * Ring groups, queues, conferences and IVR menus are dialled like extensions.
+     */
+    private function isInternalNumber(int $organizationId, string $number): bool
+    {
+        foreach ([RingGroup::class, CallQueue::class, Conference::class, IvrMenu::class] as $class) {
+            if ($class::withoutGlobalScopes()->where('organization_id', $organizationId)->where('number', $number)->exists()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * "PJSIP/o12_101-0000002a" -> ['organization_id' => 12, 'number' => '101']
      *
      * @return array{organization_id: int, number: string}|null
      */
     private function endpointFromChannel(string $channel): ?array
     {
-        return preg_match('#^PJSIP/(.+)-[0-9a-f]+$#i', $channel, $m) ? Extension::parseSipUsername($m[1]) : null;
+        $id = $this->endpointIdFromChannel($channel);
+
+        return $id ? Extension::parseSipUsername($id) : null;
+    }
+
+    /**
+     * "PJSIP/o12_t3-0000002a" -> "o12_t3"
+     */
+    private function endpointIdFromChannel(string $channel): ?string
+    {
+        return preg_match('#^PJSIP/(.+)-[0-9a-f]+$#i', $channel, $m) ? $m[1] : null;
     }
 
     /**

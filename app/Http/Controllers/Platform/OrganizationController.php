@@ -3,8 +3,14 @@
 namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\DeprovisionExtension;
+use App\Jobs\ProvisionExtension;
+use App\Jobs\ProvisionTrunk;
+use App\Jobs\PushRouting;
+use App\Jobs\RemovePbxObjects;
 use App\Models\Organization;
 use App\Models\PbxServer;
+use App\Models\SipTrunk;
 use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -71,8 +77,39 @@ class OrganizationController extends Controller
             'pbx_server_id' => ['nullable', Rule::exists(PbxServer::class, 'id')],
         ]);
 
+        $previousServerId = $organization->pbx_server_id;
         $organization->forceFill(['pbx_server_id' => $validated['pbx_server_id']])->save();
         Audit::record('organization.pbx_server_assigned', $organization, $validated, $organization);
+
+        // Move the organization's extensions: clear them from the old server, push them to the new one.
+        if ((int) $previousServerId !== (int) $organization->pbx_server_id) {
+            foreach ($organization->extensions()->get() as $extension) {
+                if ($previousServerId) {
+                    DeprovisionExtension::dispatch($previousServerId, $extension->sip_username);
+                }
+
+                if ($organization->pbx_server_id) {
+                    $extension->markProvisioningPending();
+                    ProvisionExtension::dispatch($extension->id);
+                }
+            }
+
+            // Trunks and routing globals move the same way.
+            $trunks = SipTrunk::withoutGlobalScopes()->where('organization_id', $organization->id)->get();
+
+            if ($previousServerId) {
+                RemovePbxObjects::dispatch($previousServerId, $organization->pbx_routing_keys ?? [], $trunks->map->endpointId()->all());
+                $organization->forceFill(['pbx_routing_keys' => null])->save();
+            }
+
+            if ($organization->pbx_server_id) {
+                $trunks->each(function (SipTrunk $trunk) {
+                    $trunk->markProvisioningPending();
+                    ProvisionTrunk::dispatch($trunk->id);
+                });
+                PushRouting::dispatch($organization->id);
+            }
+        }
 
         return back()->with('success', "PBX server updated for {$organization->name}.");
     }

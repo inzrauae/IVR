@@ -30,13 +30,20 @@ const breadcrumbs = computed(() => [
             </div>
 
             <div class="flex flex-col gap-6 lg:flex-row lg:gap-10">
-                <nav class="-mx-1 flex gap-1 overflow-x-auto pb-1 lg:mx-0 lg:w-52 lg:shrink-0 lg:flex-col lg:overflow-visible" aria-label="Settings sections">
+                <nav
+                    class="-mx-1 flex gap-1 overflow-x-auto pb-1 lg:mx-0 lg:w-52 lg:shrink-0 lg:flex-col lg:overflow-visible"
+                    aria-label="Settings sections"
+                >
                     <Link
                         v-for="s in sections"
                         :key="s.key"
                         :href="route('organization-settings.show', { section: s.key })"
                         class="flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors"
-                        :class="s.key === section ? 'bg-primary/10 font-medium text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'"
+                        :class="
+                            s.key === section
+                                ? 'bg-primary/10 font-medium text-primary'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        "
                     >
                         <component :is="s.icon" class="size-4" />
                         {{ s.title }}

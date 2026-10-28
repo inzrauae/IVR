@@ -40,7 +40,12 @@ const allowlistError = computed(() => {
     return errors.ip_allowlist ?? Object.entries(errors).find(([k]) => k.startsWith('ip_allowlist.'))?.[1];
 });
 const addMyIp = () => {
-    if (!allowlistText.value.split('\n').map((s) => s.trim()).includes(props.currentIp)) {
+    if (
+        !allowlistText.value
+            .split('\n')
+            .map((s) => s.trim())
+            .includes(props.currentIp)
+    ) {
         allowlistText.value = (allowlistText.value.trim() ? allowlistText.value.trim() + '\n' : '') + props.currentIp;
     }
 };
@@ -71,8 +76,26 @@ const logoutOthers = () =>
 
 const describeAgent = (ua: string | null) => {
     if (!ua) return 'Unknown device';
-    const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Browser';
-    const os = /Windows/.test(ua) ? 'Windows' : /Mac OS/.test(ua) ? 'macOS' : /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Linux/.test(ua) ? 'Linux' : '';
+    const browser = /Edg\//.test(ua)
+        ? 'Edge'
+        : /Chrome\//.test(ua)
+          ? 'Chrome'
+          : /Firefox\//.test(ua)
+            ? 'Firefox'
+            : /Safari\//.test(ua)
+              ? 'Safari'
+              : 'Browser';
+    const os = /Windows/.test(ua)
+        ? 'Windows'
+        : /Mac OS/.test(ua)
+          ? 'macOS'
+          : /Android/.test(ua)
+            ? 'Android'
+            : /iPhone|iPad/.test(ua)
+              ? 'iOS'
+              : /Linux/.test(ua)
+                ? 'Linux'
+                : '';
     return os ? `${browser} on ${os}` : browser;
 };
 const formatTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'Never');
@@ -81,13 +104,19 @@ const formatTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString(u
 <template>
     <Head title="Security" />
 
-    <OrganizationSettingsLayout :section="section" title="Security" description="Network restrictions, API access and sign-in activity" :can-manage="canManage">
+    <OrganizationSettingsLayout
+        :section="section"
+        title="Security"
+        description="Network restrictions, API access and sign-in activity"
+        :can-manage="canManage"
+    >
         <div class="space-y-6">
             <Card>
                 <CardHeader>
                     <CardTitle class="text-base">IP allowlist</CardTitle>
                     <CardDescription>
-                        When set, members can only use the portal and API from these addresses. One IP or CIDR range per line. Leave empty to allow all.
+                        When set, members can only use the portal and API from these addresses. One IP or CIDR range per line. Leave empty to allow
+                        all.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -112,13 +141,17 @@ const formatTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString(u
             <Card>
                 <CardHeader>
                     <CardTitle class="text-base">API tokens</CardTitle>
-                    <CardDescription>Personal tokens for the REST API (<code class="text-xs">/api/v1</code>). They act with your permissions.</CardDescription>
+                    <CardDescription
+                        >Personal tokens for the REST API (<code class="text-xs">/api/v1</code>). They act with your permissions.</CardDescription
+                    >
                 </CardHeader>
                 <CardContent class="space-y-4">
                     <div v-if="newToken" class="space-y-2 rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-4">
                         <p class="text-sm font-medium">Copy your new token now. It won't be shown again.</p>
                         <div class="flex gap-2">
-                            <code class="flex-1 overflow-x-auto whitespace-nowrap rounded bg-background px-3 py-2 font-mono text-xs">{{ newToken }}</code>
+                            <code class="flex-1 overflow-x-auto whitespace-nowrap rounded bg-background px-3 py-2 font-mono text-xs">{{
+                                newToken
+                            }}</code>
                             <Button variant="outline" size="sm" @click="copyToken"><Copy class="size-4" /> {{ copied ? 'Copied' : 'Copy' }}</Button>
                         </div>
                     </div>
@@ -133,7 +166,9 @@ const formatTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString(u
                         <li v-for="t in tokens" :key="t.id" class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
                             <span>
                                 <span class="font-medium">{{ t.name }}</span>
-                                <span class="block text-xs text-muted-foreground">Created {{ formatTime(t.created_at) }} · Last used {{ formatTime(t.last_used_at) }}</span>
+                                <span class="block text-xs text-muted-foreground"
+                                    >Created {{ formatTime(t.created_at) }} · Last used {{ formatTime(t.last_used_at) }}</span
+                                >
                             </span>
                             <Button variant="ghost" size="icon" :aria-label="`Revoke ${t.name}`" @click="revokeToken(t.id)">
                                 <Trash2 class="size-4 text-destructive" />

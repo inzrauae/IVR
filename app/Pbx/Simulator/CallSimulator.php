@@ -3,10 +3,11 @@
 namespace App\Pbx\Simulator;
 
 use App\Models\Call;
+use App\Models\DidNumber;
 use App\Models\Extension;
 use App\Models\PbxServer;
+use App\Models\SipTrunk;
 use App\Pbx\Calls\CallEventProcessor;
-use Illuminate\Support\Str;
 use LogicException;
 
 /**
@@ -51,9 +52,67 @@ class CallSimulator
                 'DestChannel' => $callee, 'DestUniqueid' => $calleeId, 'DestLinkedid' => $linked, 'DialString' => $target->sip_username,
             ]);
             $this->emit($server, ['Event' => 'Newstate', 'Channel' => $callee, 'ChannelStateDesc' => 'Ringing', 'Uniqueid' => $calleeId, 'Linkedid' => $linked]);
+        } elseif (preg_match('/^\+?\d{6,}$/', $to)) {
+            // External number: the call leaves on a carrier trunk.
+            $trunk = 'PJSIP/'.SipTrunk::endpointIdFor($from->organization_id, 0).'-'.bin2hex(random_bytes(4));
+            $trunkId = $this->uniqueId();
+
+            $this->emit($server, ['Event' => 'Newchannel', 'Channel' => $trunk, 'ChannelStateDesc' => 'Down', 'Exten' => $to, 'Uniqueid' => $trunkId, 'Linkedid' => $linked]);
+            $this->emit($server, ['Event' => 'DialBegin', 'Channel' => $caller, 'Uniqueid' => $linked, 'Linkedid' => $linked, 'DestChannel' => $trunk, 'DestUniqueid' => $trunkId, 'DestLinkedid' => $linked]);
         }
 
         return $linked;
+    }
+
+    /**
+     * A carrier call to a DID, arriving on the DID's trunk and ringing $answerer if given.
+     */
+    public function inbound(PbxServer $server, DidNumber $did, string $callerNumber, ?Extension $answerer = null): string
+    {
+        $linked = $this->uniqueId();
+        $trunkChannel = 'PJSIP/'.SipTrunk::endpointIdFor($did->organization_id, (int) $did->sip_trunk_id).'-'.bin2hex(random_bytes(4));
+
+        $this->emit($server, [
+            'Event' => 'Newchannel', 'Channel' => $trunkChannel, 'ChannelStateDesc' => 'Ring',
+            'CallerIDNum' => $callerNumber, 'CallerIDName' => '', 'Exten' => $did->number,
+            'Context' => 'cloudpbx-inbound', 'Uniqueid' => $linked, 'Linkedid' => $linked,
+        ]);
+
+        if ($answerer) {
+            $callee = $this->channel($answerer);
+            $calleeId = $this->uniqueId();
+
+            $this->emit($server, ['Event' => 'Newchannel', 'Channel' => $callee, 'ChannelStateDesc' => 'Down', 'Exten' => $answerer->number, 'Uniqueid' => $calleeId, 'Linkedid' => $linked]);
+            $this->emit($server, ['Event' => 'DialBegin', 'Channel' => $trunkChannel, 'Uniqueid' => $linked, 'Linkedid' => $linked, 'DestChannel' => $callee, 'DestUniqueid' => $calleeId, 'DestLinkedid' => $linked]);
+            $this->emit($server, ['Event' => 'Newstate', 'Channel' => $callee, 'ChannelStateDesc' => 'Ringing', 'Uniqueid' => $calleeId, 'Linkedid' => $linked]);
+        }
+
+        return $linked;
+    }
+
+    /**
+     * The dialplan's announcement that a call recording was saved.
+     */
+    public function recorded(PbxServer $server, string $linkedId): void
+    {
+        $call = $this->call($server, $linkedId);
+
+        $this->emit($server, [
+            'Event' => 'UserEvent', 'UserEvent' => 'CloudPBXRecording', 'Org' => (string) $call->organization_id,
+            'Linkedid' => $linkedId, 'Name' => 'cpbx-o'.$call->organization_id.'-'.str_replace('.', '-', $linkedId),
+        ]);
+    }
+
+    /**
+     * The dialplan's announcement that a caller left a voicemail.
+     */
+    public function voicemail(PbxServer $server, Extension $mailbox, string $callerNumber, int $seconds = 12): void
+    {
+        $this->emit($server, [
+            'Event' => 'UserEvent', 'UserEvent' => 'CloudPBXVoicemail', 'Org' => (string) $mailbox->organization_id,
+            'Mailbox' => $mailbox->sip_username, 'Name' => 'cpbx-vm-'.$mailbox->sip_username.'-'.str_replace('.', '-', $this->uniqueId()),
+            'CallerNum' => $callerNumber, 'CallerName' => '', 'Duration' => (string) $seconds,
+        ]);
     }
 
     public function answer(PbxServer $server, string $linkedId): void
@@ -129,7 +188,7 @@ class CallSimulator
 
     private function channel(Extension $extension): string
     {
-        return 'PJSIP/'.$extension->sip_username.'-'.Str::lower(Str::random(8));
+        return 'PJSIP/'.$extension->sip_username.'-'.bin2hex(random_bytes(4));
     }
 
     private function channelName(Call $call, string $uniqueId): ?string

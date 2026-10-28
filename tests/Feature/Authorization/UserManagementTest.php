@@ -91,14 +91,14 @@ it('only shows sidebar modules the user is permitted to see', function () {
         });
 });
 
-it('marks unbuilt modules as unavailable and still enforces their permission', function () {
+it('enforces module permissions on every module page', function () {
     $owner = User::factory()->create();
     $agent = User::factory()->role(Role::Agent)->create();
 
     $this->actingAs($owner)
         ->get(route('trunks.index'))
         ->assertOk()
-        ->assertInertia(fn ($page) => $page->component('modules/Unavailable')->where('module.title', 'SIP Trunks'));
+        ->assertInertia(fn ($page) => $page->component('trunks/Index'));
 
     $this->actingAs($agent)->get(route('trunks.index'))->assertForbidden();
 });

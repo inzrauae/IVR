@@ -9,7 +9,7 @@ html {
 
 @layer base {
     :root {
-        --background: 210 40% 99%;
+        --background: 220 33% 97%;
         --foreground: 222 47% 11%;
         --card: 0 0% 100%;
         --card-foreground: 222 47% 11%;
@@ -33,18 +33,19 @@ html {
         --chart-3: 224 64% 33%;
         --chart-4: 43 96% 56%;
         --chart-5: 0 72% 51%;
-        --radius: 0.65rem;
-        --sidebar-background: 222 47% 98%;
-        --sidebar-foreground: 222 30% 26%;
+        --radius: 0.9rem;
+        --sidebar-background: 224 44% 12%;
+        --sidebar-foreground: 218 25% 78%;
         --sidebar-primary: 221 83% 53%;
         --sidebar-primary-foreground: 0 0% 100%;
-        --sidebar-accent: 214 60% 94%;
-        --sidebar-accent-foreground: 224 64% 25%;
-        --sidebar-border: 214 32% 91%;
+        --sidebar-accent: 224 32% 20%;
+        --sidebar-accent-foreground: 0 0% 100%;
+        --sidebar-border: 224 30% 23%;
         --sidebar-ring: 221 83% 53%;
     }
 
     .dark {
+        color-scheme: dark;
         --background: 224 50% 6%;
         --foreground: 210 40% 98%;
         --card: 224 45% 9%;
@@ -86,6 +87,112 @@ html {
     }
 
     body {
-        @apply bg-background text-foreground;
+        @apply bg-background text-foreground antialiased;
+    }
+}
+
+@layer components {
+    .workspace-background {
+        background-image:
+            radial-gradient(ellipse 65% 480px at 100% 0%, hsl(199 90% 70% / 0.18), transparent 75%),
+            radial-gradient(ellipse 55% 650px at 0% 35%, hsl(221 90% 75% / 0.13), transparent 75%),
+            radial-gradient(circle, hsl(221 50% 55% / 0.13) 0.8px, transparent 1px);
+        background-size: auto, auto, 24px 24px;
+        background-repeat: no-repeat, no-repeat, repeat;
+    }
+
+    .dark .workspace-background {
+        background-image:
+            radial-gradient(ellipse 65% 480px at 100% 0%, hsl(199 90% 50% / 0.09), transparent 75%),
+            radial-gradient(ellipse 55% 650px at 0% 35%, hsl(221 90% 60% / 0.1), transparent 75%),
+            radial-gradient(circle, hsl(215 60% 70% / 0.08) 0.8px, transparent 1px);
+    }
+
+    [data-sidebar='sidebar'] {
+        --muted-foreground: 218 20% 65%;
+        --foreground: 218 25% 90%;
+        color: hsl(var(--sidebar-foreground));
+    }
+
+    [data-sidebar='group-label'] {
+        @apply mt-4 text-[10px] font-semibold uppercase tracking-[0.16em];
+        color: hsl(var(--muted-foreground));
+    }
+
+    [data-sidebar='menu-button'] {
+        @apply transition-colors duration-150;
+    }
+
+    [data-sidebar='menu-button'][data-active='true'] {
+        @apply bg-primary text-white shadow-sm;
+    }
+
+    [data-sidebar='content'] [data-sidebar='menu-button'] {
+        @apply h-10 rounded-lg;
+    }
+
+    .dashboard-hero {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        color: white;
+        border-color: transparent;
+        background: radial-gradient(ellipse at 100% 100%, #0891b2 0%, transparent 55%), linear-gradient(115deg, #172554, #1d4ed8);
+        box-shadow: 0 18px 40px -24px rgb(29 78 216 / 0.6);
+    }
+
+    .dashboard-hero::after {
+        content: '';
+        position: absolute;
+        z-index: -1;
+        width: 420px;
+        height: 420px;
+        right: -100px;
+        top: -160px;
+        border: 1px solid rgb(255 255 255 / 0.15);
+        border-radius: 50%;
+        box-shadow: 0 0 0 45px rgb(255 255 255 / 0.04), 0 0 0 90px rgb(255 255 255 / 0.04), 0 0 0 135px rgb(255 255 255 / 0.03);
+        pointer-events: none;
+    }
+
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        inset: 20px auto 20px 0;
+        width: 3px;
+        border-radius: 0 4px 4px 0;
+        background: hsl(var(--primary));
+    }
+
+    .metric-card:nth-child(2)::before { background: #14b8a6; }
+    .metric-card:nth-child(3)::before { background: #8b5cf6; }
+    .metric-card:nth-child(4)::before { background: #f59e0b; }
+
+    .quick-action {
+        @apply flex items-center gap-4 rounded-xl border border-border/70 bg-card p-4 transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+    }
+
+    main input:not([type='checkbox']):not([type='radio']), main select, main textarea {
+        border-radius: 0.65rem;
+    }
+
+    main table th, main table td {
+        padding-top: 0.9rem;
+        padding-bottom: 0.9rem;
+    }
+
+    main table tbody tr {
+        @apply transition-colors hover:bg-muted/40;
+    }
+
+    main table thead {
+        @apply text-[11px] tracking-wider;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
     }
 }

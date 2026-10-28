@@ -124,7 +124,12 @@ const numberFields = [
 <template>
     <Head title="Packages" />
 
-    <AppLayout :breadcrumbs="[{ title: 'Platform', href: '/platform' }, { title: 'Packages', href: '/platform/packages' }]">
+    <AppLayout
+        :breadcrumbs="[
+            { title: 'Platform', href: '/platform' },
+            { title: 'Packages', href: '/platform/packages' },
+        ]"
+    >
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <div class="flex flex-wrap items-end justify-between gap-3">
                 <div>
@@ -147,7 +152,9 @@ const numberFields = [
                         <p>
                             <span class="text-xl font-semibold tabular-nums">{{ money(p.monthly_price, p.currency) }}</span>
                             <span class="text-muted-foreground"> / month</span>
-                            <span v-if="p.annual_price" class="block text-xs text-muted-foreground">{{ money(p.annual_price, p.currency) }} / year</span>
+                            <span v-if="p.annual_price" class="block text-xs text-muted-foreground"
+                                >{{ money(p.annual_price, p.currency) }} / year</span
+                            >
                         </p>
                         <dl class="grid grid-cols-2 gap-y-1">
                             <dt class="text-muted-foreground">Users</dt>
@@ -171,7 +178,9 @@ const numberFields = [
             <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>{{ editing === 'new' ? 'New package' : `Edit ${form.name}` }}</DialogTitle>
-                    <DialogDescription>Leave a limit empty for unlimited. Price changes apply to new subscriptions and plan changes.</DialogDescription>
+                    <DialogDescription
+                        >Leave a limit empty for unlimited. Price changes apply to new subscriptions and plan changes.</DialogDescription
+                    >
                 </DialogHeader>
                 <form id="package-form" class="grid gap-4 sm:grid-cols-2" @submit.prevent="submit">
                     <div class="grid gap-2">
@@ -217,7 +226,12 @@ const numberFields = [
                         <legend class="mb-2 text-sm font-medium">Included features</legend>
                         <div class="grid gap-2 sm:grid-cols-2">
                             <label v-for="(label, key) in featureOptions" :key="key" class="flex items-center gap-2 text-sm">
-                                <input type="checkbox" class="size-4 accent-[hsl(var(--primary))]" :checked="form.features.includes(key)" @change="toggleFeature(key)" />
+                                <input
+                                    type="checkbox"
+                                    class="size-4 accent-[hsl(var(--primary))]"
+                                    :checked="form.features.includes(key)"
+                                    @change="toggleFeature(key)"
+                                />
                                 {{ label }}
                             </label>
                         </div>

@@ -14,7 +14,9 @@ defineProps<{
             <div class="flex flex-col gap-8">
                 <div class="flex flex-col items-center gap-4">
                     <Link :href="route('home')" class="flex flex-col items-center gap-2 font-medium">
-                        <div class="mb-1 flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-cyan-500 text-white shadow-sm">
+                        <div
+                            class="mb-1 flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-cyan-500 text-white shadow-sm"
+                        >
                             <AppLogoIcon class="size-6" />
                         </div>
                         <span class="text-sm font-semibold tracking-tight">{{ $page.props.name }}</span>

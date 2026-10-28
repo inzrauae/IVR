@@ -1,9 +1,11 @@
 # Production deployment
 
-> **What works in production today (Phase 1):** organization sign-up, users and roles, the
-> super-admin console, and Asterisk health monitoring. **Phone calls do not work yet.**
-> Extensions, trunks, DIDs and IVR arrive in Phases 9–11. Deploying now is useful for a staging
-> environment and to get the Asterisk server ready.
+> **Scope:** every portal module is built: extensions, departments, SIP trunks, DIDs, outbound
+> routing with open hours, IVR menus, ring groups, queues, conferences, voicemail, call
+> recording, live calls with listen/whisper/barge, call history, the browser web phone,
+> contacts, reports, webhooks and the REST API. Telephony behaviour lives in the shared dialplan
+> in [`docs/asterisk/`](asterisk/); test it on a staging PBX with a real carrier account before
+> taking customer traffic.
 
 ## 1. What you need
 
@@ -145,7 +147,15 @@ echo "* * * * * www-data cd /var/www/cloudpbx && php artisan schedule:run >> /de
 sudo ufw allow OpenSSH && sudo ufw allow 'Nginx Full' && sudo ufw enable
 ```
 
-PostgreSQL and Redis listen on localhost only by default. Keep it that way.
+PostgreSQL and Redis listen on localhost only by default. The one exception is the PBX, which
+reads call queues from the database (3.3): make PostgreSQL also listen on the private address and
+allow only the PBX's read-only role from the PBX's private IP:
+
+```bash
+sudo ufw allow from <PBX_PRIVATE_IP> to any port 5432 proto tcp
+# postgresql.conf: listen_addresses = 'localhost,10.0.0.4'
+# pg_hba.conf:     host cloudpbx asterisk_ro <PBX_PRIVATE_IP>/32 scram-sha-256
+```
 
 ## 3. PBX server (Asterisk)
 
@@ -190,12 +200,70 @@ password = LONG_RANDOM_SECRET
 sudo asterisk -rx "core reload"
 ```
 
-### 3.3 Firewall (PBX)
+### 3.3 Provisioning and dialplan
+
+Laravel pushes extensions and SIP trunks as PJSIP objects through ARI, and everything else
+(DIDs, open hours, IVR menus, ring groups, queues, conferences, outbound routes, recording mode)
+as global variables read by one shared dialplan. Asterisk needs these files from
+[`docs/asterisk/`](asterisk/):
+
+| File | Purpose |
+|---|---|
+| `sorcery.conf` | Lets ARI create endpoints, trunks, IP matches and registrations at runtime (AstDB) |
+| `pjsip.conf` | UDP/TCP/TLS/WSS transports; set your public IP and certificate paths |
+| `extensions.conf` | Shared tenant dialplan: internal calls, inbound DIDs, IVR, groups, queues, conferences, voicemail, recording, outbound routes, call monitoring |
+| `manager.conf` | AMI user for the event listener (calls, registrations, recording and voicemail events) |
+| `extconfig.conf`, `res_pgsql.conf`, `queues.conf` | Call queues read live from the app database (read-only role) |
+
+`http.conf` and `ari.conf` there are complete versions of 3.2, including the TLS listener for WSS.
+
+```bash
+sudo cp docs/asterisk/{sorcery,pjsip,extensions,manager,extconfig,res_pgsql,queues}.conf /etc/asterisk/   # review first
+sudo asterisk -rx "core restart when convenient"
+```
+
+Also check:
+
+- **Modules:** `res_config_pgsql` (queues), `res_http_media_cache` (IVR greetings are fetched
+  from `https://app.example.com/pbx-media/...`, so the PBX needs outbound HTTPS to the app),
+  `app_confbridge`, `app_queue`, `app_mixmonitor`, `app_chanspy`.
+- **Recordings and voicemail** are written to `/var/spool/asterisk/recording` and streamed to
+  browsers through ARI, never directly. Plan disk space and a cleanup policy there.
+- **Web phone:** set the server's **WSS URL** (e.g. `wss://sip.example.com:8089/ws`) and SIP
+  domain in the platform portal. Browsers need a trusted certificate on that host.
+- **Carriers:** the DID must arrive in the request URI (most carriers do this); numbers are
+  matched on digits only, so `+94 11 234 5678` and `94112345678` are the same DID.
+
+Globals are lost when Asterisk restarts. The `pbx:health` schedule notices the new startup time
+and re-pushes extensions, trunks and routing; `pbx:sync` also runs nightly (it drops past
+holidays). Run `php artisan pbx:sync <server id>` to do it by hand, and add `--prune` to remove
+endpoints whose extensions were deleted while the PBX was unreachable.
+
+For a demo without a PBX, assign an organization to a server using the `simulator` driver and
+run `php artisan pbx:simulate <organization id or slug> --calls=50 --days=14` to fill call
+history, live calls, recordings, voicemail and reports (refused when `APP_ENV=production`).
+
+Provisioning runs on the queue, so the queue worker (2.5) must be running.
+
+Device registration status (and call records) come from AMI. Enter the AMI host and credentials on
+the PBX server in the platform portal, then run one listener per server under Supervisor
+(`/etc/supervisor/conf.d/cloudpbx-pbx-1.conf`):
+
+```ini
+[program:cloudpbx-pbx-1]
+command=php /var/www/cloudpbx/artisan pbx:listen 1 --max-runtime=3600
+user=www-data
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/cloudpbx/pbx-1.log
+```
+
+### 3.4 Firewall (PBX)
 
 ```bash
 sudo ufw allow OpenSSH
 sudo ufw allow from <APP_SERVER_PRIVATE_IP> to any port 8088 proto tcp   # ARI
-sudo ufw allow from <APP_SERVER_PRIVATE_IP> to any port 5038 proto tcp   # AMI (Phase 10)
+sudo ufw allow from <APP_SERVER_PRIVATE_IP> to any port 5038 proto tcp   # AMI (event listener)
 sudo ufw allow 5061/tcp                 # SIP over TLS
 sudo ufw allow 8089/tcp                 # WSS for the browser web phone (Phase 10)
 sudo ufw allow 10000:20000/udp          # RTP media
@@ -206,13 +274,14 @@ sudo apt install -y fail2ban            # add an Asterisk jail against SIP scann
 Do **not** open 5060/UDP to the world unless your carrier requires it. If it does, allow only
 the carrier's IP ranges.
 
-### 3.4 Connect it to the platform
+### 3.5 Connect it to the platform
 
 1. Log in to `https://app.example.com` as the platform admin.
 2. Go to **PBX Servers → Add server**: driver `asterisk`, ARI URL `http://10.0.0.5:8088/ari`,
    username `laravel`, and the password from `ari.conf`.
 3. Click **Check health now**. It should show **Online** with the Asterisk version.
-4. Go to **Organizations** and assign the server to each organization.
+4. Go to **Organizations** and assign the server to each organization. Existing extensions are
+   moved to the new server automatically.
 
 ## 4. Deploying updates
 

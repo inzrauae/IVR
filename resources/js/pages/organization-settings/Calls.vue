@@ -32,7 +32,12 @@ const submit = () => form.put(route('organization-settings.calls.update'), { pre
 <template>
     <Head title="Call settings" />
 
-    <OrganizationSettingsLayout :section="section" title="Call settings" description="Defaults for caller ID, ringing, recording and dialing permissions" :can-manage="canManage">
+    <OrganizationSettingsLayout
+        :section="section"
+        title="Call settings"
+        description="Defaults for caller ID, ringing, recording and dialing permissions"
+        :can-manage="canManage"
+    >
         <p class="mb-6 flex gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
             <Info class="mt-0.5 size-4 shrink-0 text-primary" />
             These values are saved now and applied to your phone system as extensions, routes and recordings are provisioned (Phases 9–12).

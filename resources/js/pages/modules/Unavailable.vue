@@ -21,13 +21,16 @@ const breadcrumbs = [{ title: props.module.title, href: '#' }];
                     <component :is="resolveIcon(module.icon)" class="size-7" />
                 </div>
                 <h1 class="mt-5 text-xl font-semibold tracking-tight">{{ module.title }}</h1>
-                <p class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                <p
+                    class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-400"
+                >
                     <Construction class="size-3.5" />
                     Not yet available
                 </p>
                 <p class="mt-4 text-sm text-muted-foreground">
-                    This module is part of the platform roadmap<template v-if="module.phase"> and is scheduled for delivery in Phase {{ module.phase }}</template>.
-                    Nothing on this page is functional yet, and no data has been created for it.
+                    This module is part of the platform roadmap<template v-if="module.phase">
+                        and is scheduled for delivery in Phase {{ module.phase }}</template
+                    >. Nothing on this page is functional yet, and no data has been created for it.
                 </p>
             </div>
         </div>

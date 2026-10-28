@@ -50,7 +50,9 @@ const formatTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString(u
                         <dd>{{ formatTime(diagnostics.pbx.checked_at) }}</dd>
                     </dl>
                     <p v-else class="text-muted-foreground">No PBX server is assigned to your organization yet. Your provider assigns one.</p>
-                    <p v-if="diagnostics.pbx?.error" class="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{{ diagnostics.pbx.error }}</p>
+                    <p v-if="diagnostics.pbx?.error" class="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                        {{ diagnostics.pbx.error }}
+                    </p>
                 </CardContent>
             </Card>
 

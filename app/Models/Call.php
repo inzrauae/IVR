@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Authorization\Permission;
 use App\Tenancy\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -43,6 +44,7 @@ class Call extends Model
         'to_number',
         'from_extension_id',
         'to_extension_id',
+        'did_number_id',
         'active_channels',
         'started_at',
     ];
@@ -87,8 +89,57 @@ class Call extends Model
         $query->whereNotIn('status', self::LIVE_STATUSES);
     }
 
+    /**
+     * Agents and employees (no live-call or report access) see only calls on their own extension.
+     */
+    public function scopeVisibleTo(Builder $query, User $user): void
+    {
+        if ($user->can(Permission::CALLS_VIEW_LIVE) || $user->can(Permission::REPORTS_VIEW)) {
+            return;
+        }
+
+        $extensionId = $user->extension?->id;
+
+        $query->where(fn ($q) => $q->where('from_extension_id', $extensionId ?? 0)->orWhere('to_extension_id', $extensionId ?? 0));
+    }
+
     public function isLive(): bool
     {
         return in_array($this->status, self::LIVE_STATUSES, true);
+    }
+
+    public function didNumber(): BelongsTo
+    {
+        return $this->belongsTo(DidNumber::class)->withoutGlobalScopes();
+    }
+
+    public function recordings(): HasMany
+    {
+        return $this->hasMany(Recording::class)->withoutGlobalScopes();
+    }
+
+    /**
+     * The public shape of a call, shared by webhooks and the REST API.
+     *
+     * @return array<string, mixed>
+     */
+    public function toPayload(): array
+    {
+        return [
+            'id' => $this->id,
+            'direction' => $this->direction,
+            'status' => $this->status,
+            'from_number' => $this->from_number,
+            'from_name' => $this->from_name,
+            'to_number' => $this->to_number,
+            'from_extension' => $this->fromExtension?->number,
+            'to_extension' => $this->toExtension?->number,
+            'started_at' => $this->started_at?->toIso8601String(),
+            'answered_at' => $this->answered_at?->toIso8601String(),
+            'ended_at' => $this->ended_at?->toIso8601String(),
+            'duration' => $this->duration,
+            'talk_time' => $this->talk_time,
+            'hangup_cause' => $this->hangup_cause,
+        ];
     }
 }

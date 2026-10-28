@@ -25,7 +25,14 @@ interface PackageOption {
 
 const props = defineProps<{
     subscription: {
-        package: { id: number; name: string; max_users: number | null; max_extensions: number | null; max_concurrent_calls: number | null; recording_storage_mb: number | null };
+        package: {
+            id: number;
+            name: string;
+            max_users: number | null;
+            max_extensions: number | null;
+            max_concurrent_calls: number | null;
+            recording_storage_mb: number | null;
+        };
         features: string[];
         status: string;
         billing_cycle: string;
@@ -57,7 +64,9 @@ const money = (amount: number | string, currency: string) =>
 const formatDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '—');
 
 const trialDaysLeft = computed(() =>
-    props.subscription?.trial_ends_at ? Math.max(0, Math.ceil((new Date(props.subscription.trial_ends_at).getTime() - Date.now()) / 86_400_000)) : null,
+    props.subscription?.trial_ends_at
+        ? Math.max(0, Math.ceil((new Date(props.subscription.trial_ends_at).getTime() - Date.now()) / 86_400_000))
+        : null,
 );
 const openBalance = computed(() => props.invoices.filter((i) => i.status === 'open' || i.status === 'overdue'));
 
@@ -111,7 +120,8 @@ const saveContact = () => contactForm.put(route('billing.contact'), { preserveSc
                         </p>
                         <p class="text-sm text-muted-foreground">
                             <template v-if="trialDaysLeft !== null && subscription.status === 'trialing'">
-                                Free trial · {{ trialDaysLeft }} days left. Your first invoice is issued on {{ formatDate(subscription.trial_ends_at) }}.
+                                Free trial · {{ trialDaysLeft }} days left. Your first invoice is issued on
+                                {{ formatDate(subscription.trial_ends_at) }}.
                             </template>
                             <template v-else>Renews on {{ formatDate(subscription.current_period_end) }}.</template>
                         </p>
@@ -120,7 +130,10 @@ const saveContact = () => contactForm.put(route('billing.contact'), { preserveSc
                                 <p class="text-xs text-muted-foreground">Users</p>
                                 <p class="mt-1 font-semibold tabular-nums">{{ usage.users }} / {{ subscription.package.max_users ?? '∞' }}</p>
                                 <div v-if="subscription.package.max_users" class="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                                    <div class="h-full rounded-full bg-primary" :style="{ width: Math.min(100, (usage.users / subscription.package.max_users) * 100) + '%' }" />
+                                    <div
+                                        class="h-full rounded-full bg-primary"
+                                        :style="{ width: Math.min(100, (usage.users / subscription.package.max_users) * 100) + '%' }"
+                                    />
                                 </div>
                             </div>
                             <div class="rounded-lg border p-3">
@@ -147,7 +160,13 @@ const saveContact = () => contactForm.put(route('billing.contact'), { preserveSc
                     </CardHeader>
                     <CardContent>
                         <form class="space-y-3" @submit.prevent="saveContact">
-                            <Input v-model="contactForm.billing_email" type="email" placeholder="accounts@example.com" :disabled="!canManage" aria-label="Billing email" />
+                            <Input
+                                v-model="contactForm.billing_email"
+                                type="email"
+                                placeholder="accounts@example.com"
+                                :disabled="!canManage"
+                                aria-label="Billing email"
+                            />
                             <InputError :message="contactForm.errors.billing_email" />
                             <Button v-if="canManage" type="submit" variant="outline" size="sm" :disabled="contactForm.processing">Save</Button>
                         </form>
@@ -177,7 +196,12 @@ const saveContact = () => contactForm.put(route('billing.contact'), { preserveSc
                     </div>
                 </CardHeader>
                 <CardContent class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    <div v-for="p in packages" :key="p.id" class="flex flex-col rounded-xl border p-5" :class="{ 'border-primary ring-1 ring-primary': isCurrent(p) }">
+                    <div
+                        v-for="p in packages"
+                        :key="p.id"
+                        class="flex flex-col rounded-xl border p-5"
+                        :class="{ 'border-primary ring-1 ring-primary': isCurrent(p) }"
+                    >
                         <p class="font-semibold">{{ p.name }}</p>
                         <p class="mt-1 min-h-10 text-sm text-muted-foreground">{{ p.description }}</p>
                         <p class="mt-3">
@@ -219,7 +243,12 @@ const saveContact = () => contactForm.put(route('billing.contact'), { preserveSc
                                     <td class="px-4 py-2 text-right tabular-nums">{{ money(i.total, i.currency) }}</td>
                                     <td class="px-4 py-2"><StatusBadge :status="i.status" /></td>
                                     <td class="px-4 py-2 text-right">
-                                        <a :href="route('billing.invoices.show', { invoice: i.id })" target="_blank" class="inline-flex text-primary" :aria-label="`Open ${i.number}`">
+                                        <a
+                                            :href="route('billing.invoices.show', { invoice: i.id })"
+                                            target="_blank"
+                                            class="inline-flex text-primary"
+                                            :aria-label="`Open ${i.number}`"
+                                        >
                                             <ExternalLink class="size-4" />
                                         </a>
                                     </td>
@@ -264,8 +293,8 @@ const saveContact = () => contactForm.put(route('billing.contact'), { preserveSc
                     <DialogDescription>
                         <template v-if="subscription?.status === 'trialing'">Your free trial continues on the new plan.</template>
                         <template v-else>
-                            The change applies now and an invoice for {{ choosing ? money(priceFor(choosing), choosing.currency) : '' }} is issued for a new
-                            {{ cycle === 'annual' ? 'year' : 'month' }}. Unused time on your current plan is not credited.
+                            The change applies now and an invoice for {{ choosing ? money(priceFor(choosing), choosing.currency) : '' }} is issued for
+                            a new {{ cycle === 'annual' ? 'year' : 'month' }}. Unused time on your current plan is not credited.
                         </template>
                     </DialogDescription>
                 </DialogHeader>

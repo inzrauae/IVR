@@ -136,7 +136,13 @@ const formatDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateStri
                                 </td>
                                 <td class="px-4 py-3 text-muted-foreground">{{ formatDate(member.last_login_at) }}</td>
                                 <td class="px-4 py-3 text-right">
-                                    <Button v-if="member.can.delete" variant="ghost" size="icon" :aria-label="`Remove ${member.name}`" @click="removing = member">
+                                    <Button
+                                        v-if="member.can.delete"
+                                        variant="ghost"
+                                        size="icon"
+                                        :aria-label="`Remove ${member.name}`"
+                                        @click="removing = member"
+                                    >
                                         <Trash2 class="size-4 text-destructive" />
                                     </Button>
                                 </td>

@@ -9,6 +9,7 @@ use App\Models\Package;
 use App\Models\Payment;
 use App\Support\Audit;
 use App\Tenancy\Tenant;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -107,7 +108,7 @@ class BillingController extends Controller
     /**
      * Printable invoice. Resolved through the tenant scope, so other organizations' invoices 404.
      */
-    public function showInvoice(int $invoice): \Illuminate\Contracts\View\View
+    public function showInvoice(int $invoice): View
     {
         Gate::authorize(Permission::BILLING_VIEW);
 

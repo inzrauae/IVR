@@ -4,6 +4,7 @@ namespace App\Pbx\Drivers;
 
 use App\Models\Extension;
 use App\Models\PbxServer;
+use App\Models\SipTrunk;
 use App\Pbx\Contracts\PbxDriver;
 use App\Pbx\Data\PbxHealth;
 use App\Pbx\Exceptions\PbxException;
@@ -20,6 +21,9 @@ class AsteriskDriver implements PbxDriver
 {
     /** Dialplan context every tenant endpoint starts in (shipped in docs/asterisk/extensions.conf). */
     public const CONTEXT = 'cloudpbx-internal';
+
+    /** Context for calls arriving from carriers. */
+    public const TRUNK_CONTEXT = 'cloudpbx-inbound';
 
     public function __construct(private readonly PbxServer $server) {}
 
@@ -139,6 +143,115 @@ class AsteriskDriver implements PbxDriver
             ->all();
     }
 
+    public function setGlobals(array $values): void
+    {
+        foreach ($values as $name => $value) {
+            $this->setGlobal($name, $value);
+        }
+    }
+
+    public function provisionTrunk(SipTrunk $trunk): void
+    {
+        $id = $trunk->endpointId();
+        $uri = "sip:{$trunk->host}:{$trunk->port}";
+        $transport = 'transport-'.$trunk->transport;
+        $hasAuth = filled($trunk->username);
+
+        if ($hasAuth) {
+            $this->pushObject('auth', $id, ['auth_type' => 'userpass', 'username' => $trunk->username, 'password' => (string) $trunk->password]);
+        }
+
+        $this->pushObject('aor', $id, ['contact' => $uri, 'qualify_frequency' => '60']);
+
+        $endpoint = array_filter([
+            'context' => self::TRUNK_CONTEXT,
+            'disallow' => 'all',
+            'allow' => $trunk->codecs ?: 'ulaw,alaw',
+            'aors' => $id,
+            'outbound_auth' => $hasAuth ? $id : null,
+            'transport' => $transport,
+            'from_domain' => $trunk->from_domain,
+            'from_user' => $trunk->username,
+            'direct_media' => 'no',
+            'rtp_symmetric' => 'yes',
+            'force_rport' => 'yes',
+            'rewrite_contact' => 'yes',
+            'send_pai' => 'yes',
+            'device_state_busy_at' => $trunk->max_channels > 0 ? (string) $trunk->max_channels : null,
+        ]);
+
+        $this->pushObject('endpoint', $id, $endpoint, [
+            ['attribute' => 'set_var', 'value' => "CLOUDPBX_ORG={$trunk->organization_id}"],
+            ['attribute' => 'set_var', 'value' => "CLOUDPBX_TRUNK={$id}"],
+        ]);
+
+        // Calls from the carrier are matched to this trunk by source address.
+        $this->pushObject('identify', $id, ['endpoint' => $id, 'match' => $trunk->host]);
+
+        if ($trunk->register && $hasAuth) {
+            $this->pushObject('registration', $id, [
+                'outbound_auth' => $id,
+                'server_uri' => $uri,
+                'client_uri' => "sip:{$trunk->username}@{$trunk->host}",
+                'contact_user' => (string) $trunk->username,
+                'transport' => $transport,
+                'retry_interval' => '60',
+                'expiration' => '3600',
+            ]);
+        } else {
+            $this->deleteObject('registration', $id);
+        }
+
+        if (! $hasAuth) {
+            $this->deleteObject('auth', $id);
+        }
+
+        $this->verifyEndpoint($id, self::TRUNK_CONTEXT);
+    }
+
+    public function deprovisionTrunk(string $endpointId): void
+    {
+        foreach (['registration', 'identify', 'endpoint', 'aor', 'auth'] as $type) {
+            $this->deleteObject($type, $endpointId);
+        }
+    }
+
+    public function spy(string $supervisorSipId, string $targetChannel, string $mode): void
+    {
+        $response = $this->send(fn () => $this->ari()->post('channels?'.http_build_query([
+            'endpoint' => "PJSIP/{$supervisorSipId}",
+            'context' => 'cloudpbx-spy',
+            'extension' => $mode,
+            'priority' => 1,
+            'callerId' => "\"Monitor\" <{$mode}>",
+            'timeout' => 30,
+        ]), ['variables' => ['SPY_TARGET' => $targetChannel]]));
+
+        if (! $response->successful()) {
+            throw new PbxException('Could not call your extension: '.$this->describe($response));
+        }
+    }
+
+    public function recordingAudio(string $name): string
+    {
+        $response = $this->send(fn () => $this->ari()->accept('*/*')->get('recordings/stored/'.rawurlencode($name).'/file'));
+
+        if (! $response->successful()) {
+            throw new PbxException('Recording is not available on the PBX: '.$this->describe($response));
+        }
+
+        return $response->body();
+    }
+
+    public function deleteRecording(string $name): void
+    {
+        $response = $this->send(fn () => $this->ari()->delete('recordings/stored/'.rawurlencode($name)));
+
+        if (! $response->successful() && $response->status() !== 404) {
+            throw new PbxException('Deleting the recording failed: '.$this->describe($response));
+        }
+    }
+
     public function hangupChannel(string $channelId): void
     {
         $response = $this->send(fn () => $this->ari()->delete('channels/'.rawurlencode($channelId), ['reason' => 'normal']));
@@ -170,7 +283,7 @@ class AsteriskDriver implements PbxDriver
             ...$repeated,
         ]];
 
-        $response = $this->send(fn () => $this->ari()->put("asterisk/config/dynamic/res_pjsip/{$type}/{$id}", $payload));
+        $response = $this->send(fn () => $this->ari()->put(self::configPath($type, $id), $payload));
 
         if (! $response->successful()) {
             throw new PbxException("Provisioning {$type} {$id} failed: ".$this->describe($response));
@@ -202,9 +315,32 @@ class AsteriskDriver implements PbxDriver
     }
 
     /**
+     * ARI dynamic-configuration path. Each PJSIP object type belongs to the module that owns it.
+     */
+    private static function configPath(string $type, string $id): string
+    {
+        $class = match ($type) {
+            'identify' => 'res_pjsip_endpoint_identifier_ip',
+            'registration' => 'res_pjsip_outbound_registration',
+            default => 'res_pjsip',
+        };
+
+        return "asterisk/config/dynamic/{$class}/{$type}/{$id}";
+    }
+
+    private function deleteObject(string $type, string $id): void
+    {
+        $response = $this->send(fn () => $this->ari()->delete(self::configPath($type, $id)));
+
+        if (! $response->successful() && $response->status() !== 404) {
+            throw new PbxException("Removing {$type} {$id} failed: ".$this->describe($response));
+        }
+    }
+
+    /**
      * Read the endpoint back so a push the PBX silently ignored is reported instead of trusted.
      */
-    private function verifyEndpoint(string $id): void
+    private function verifyEndpoint(string $id, string $expectedContext = self::CONTEXT): void
     {
         $response = $this->send(fn () => $this->ari()->get("asterisk/config/dynamic/res_pjsip/endpoint/{$id}"));
 
@@ -214,8 +350,8 @@ class AsteriskDriver implements PbxDriver
 
         $context = collect($response->json() ?? [])->firstWhere('attribute', 'context')['value'] ?? null;
 
-        if ($context !== self::CONTEXT) {
-            throw new PbxException("Endpoint {$id} has context [{$context}] on the PBX; expected [".self::CONTEXT.'].');
+        if ($context !== $expectedContext) {
+            throw new PbxException("Endpoint {$id} has context [{$context}] on the PBX; expected [{$expectedContext}].");
         }
     }
 

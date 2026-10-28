@@ -46,7 +46,7 @@ export interface SharedData {
     auth: Auth;
     organization: Organization | null;
     navigation: ModuleNavGroup[];
-    flash: { success: string | null; error: string | null; token: string | null };
+    flash: { success: string | null; error: string | null; token: string | null; credentials: { username: string; password: string } | null };
     ziggy: {
         location: string;
         url: string;

@@ -4,8 +4,11 @@ namespace App\Http\Controllers\OrganizationSettings;
 
 use App\Authorization\Permission;
 use App\Http\Controllers\Controller;
+use App\Jobs\ProvisionExtension;
+use App\Jobs\PushRouting;
 use App\Models\AuditLog;
 use App\Models\BusinessHour;
+use App\Models\Extension;
 use App\Models\Organization;
 use App\Models\OrganizationSettings;
 use App\Rules\IpOrCidr;
@@ -111,6 +114,11 @@ class SettingsController extends Controller
 
         Audit::record('settings.general_updated', $organization, ['fields' => array_keys($organization->getChanges())]);
 
+        // Open hours are evaluated in the organization's timezone on the PBX.
+        if ($organization->wasChanged('timezone')) {
+            PushRouting::forCurrentTenant();
+        }
+
         return back()->with('success', 'General settings saved.');
     }
 
@@ -184,6 +192,17 @@ class SettingsController extends Controller
         $organization->updateSettingsSection('call', $validated);
 
         Audit::record('settings.calls_updated', $organization, ['changed' => array_keys(array_diff_assoc(array_map('strval', $validated), array_map('strval', $before)))]);
+
+        // Recording mode, caller ID and the call time limit travel with the routing globals.
+        PushRouting::forCurrentTenant();
+
+        // Extensions without their own ring timeout use this default on the PBX.
+        if ((int) $before['ring_timeout'] !== $validated['ring_timeout']) {
+            Extension::whereNull('ring_timeout')->each(function (Extension $extension) {
+                $extension->markProvisioningPending();
+                ProvisionExtension::dispatch($extension->id);
+            });
+        }
 
         return back()->with('success', 'Call settings saved.');
     }

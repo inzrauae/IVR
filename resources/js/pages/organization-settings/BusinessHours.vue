@@ -36,7 +36,8 @@ const addHoliday = () =>
 
 const removeHoliday = (id: number) => router.delete(route('organization-settings.holidays.destroy', { holiday: id }), { preserveScroll: true });
 
-const dayError = (index: number) => (form.errors as Record<string, string>)[`hours.${index}.closes_at`] ?? (form.errors as Record<string, string>)[`hours.${index}.opens_at`];
+const dayError = (index: number) =>
+    (form.errors as Record<string, string>)[`hours.${index}.closes_at`] ?? (form.errors as Record<string, string>)[`hours.${index}.opens_at`];
 
 const formatDate = (iso: string, recurring: boolean) =>
     new Date(iso + 'T00:00:00').toLocaleDateString(undefined, recurring ? { day: 'numeric', month: 'long' } : { dateStyle: 'medium' });

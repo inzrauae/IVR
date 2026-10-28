@@ -69,13 +69,22 @@ const confirmVoid = () => {
 
 const running = ref(false);
 const runBilling = () =>
-    router.post(route('platform.billing.run'), {}, { preserveScroll: true, onStart: () => (running.value = true), onFinish: () => (running.value = false) });
+    router.post(
+        route('platform.billing.run'),
+        {},
+        { preserveScroll: true, onStart: () => (running.value = true), onFinish: () => (running.value = false) },
+    );
 </script>
 
 <template>
     <Head title="Invoices" />
 
-    <AppLayout :breadcrumbs="[{ title: 'Platform', href: '/platform' }, { title: 'Invoices', href: '/platform/invoices' }]">
+    <AppLayout
+        :breadcrumbs="[
+            { title: 'Platform', href: '/platform' },
+            { title: 'Invoices', href: '/platform/invoices' },
+        ]"
+    >
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <div class="flex flex-wrap items-end justify-between gap-3">
                 <div>
@@ -136,7 +145,13 @@ const runBilling = () =>
                                 <td class="whitespace-nowrap px-4 py-3 text-right">
                                     <template v-if="i.status === 'open' || i.status === 'overdue'">
                                         <Button size="sm" @click="openPayment(i)">Record payment</Button>
-                                        <Button v-if="Number(i.balance) === Number(i.total)" size="sm" variant="ghost" class="text-destructive" @click="voiding = i">
+                                        <Button
+                                            v-if="Number(i.balance) === Number(i.total)"
+                                            size="sm"
+                                            variant="ghost"
+                                            class="text-destructive"
+                                            @click="voiding = i"
+                                        >
                                             Void
                                         </Button>
                                     </template>
@@ -171,8 +186,8 @@ const runBilling = () =>
                 <DialogHeader>
                     <DialogTitle>Record payment · {{ paying?.number }}</DialogTitle>
                     <DialogDescription>
-                        {{ paying?.organization }} · balance {{ paying ? money(paying.balance, paying.currency) : '' }}. A full payment closes the invoice and lifts
-                        any billing suspension.
+                        {{ paying?.organization }} · balance {{ paying ? money(paying.balance, paying.currency) : '' }}. A full payment closes the
+                        invoice and lifts any billing suspension.
                     </DialogDescription>
                 </DialogHeader>
                 <form id="record-payment" class="grid gap-4 sm:grid-cols-2" @submit.prevent="submitPayment">

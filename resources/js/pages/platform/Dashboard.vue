@@ -57,7 +57,12 @@ const formatTime = (iso: string) => new Date(iso).toLocaleString(undefined, { da
                     :hint="`${stats.organizations.active} active · ${stats.organizations.trial} trial`"
                 />
                 <StatCard label="Suspended" :value="stats.organizations.suspended" :icon="CircleAlert" hint="Organizations without access" />
-                <StatCard label="Monthly recurring revenue" :value="money(stats.mrr)" :icon="TrendingUp" hint="Paying subscriptions, trials excluded" />
+                <StatCard
+                    label="Monthly recurring revenue"
+                    :value="money(stats.mrr)"
+                    :icon="TrendingUp"
+                    hint="Paying subscriptions, trials excluded"
+                />
                 <StatCard
                     label="PBX servers"
                     :value="`${stats.pbx.online} / ${stats.pbx.total}`"
@@ -106,7 +111,8 @@ const formatTime = (iso: string) => new Date(iso).toLocaleString(undefined, { da
                             <li v-for="entry in recentActivity" :key="entry.id" class="py-2.5 text-sm">
                                 <div class="font-medium">{{ humanizeAction(entry.action) }}</div>
                                 <div class="text-xs text-muted-foreground">
-                                    {{ entry.organization?.name ?? 'Platform' }} · {{ entry.user?.name ?? 'System' }} · {{ formatTime(entry.created_at) }}
+                                    {{ entry.organization?.name ?? 'Platform' }} · {{ entry.user?.name ?? 'System' }} ·
+                                    {{ formatTime(entry.created_at) }}
                                 </div>
                             </li>
                         </ul>

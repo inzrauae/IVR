@@ -3,8 +3,10 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -17,7 +19,7 @@ use Spatie\Permission\Traits\HasRoles;
  */
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     public const STATUS_ACTIVE = 'active';
@@ -86,5 +88,13 @@ class User extends Authenticatable
     public function primaryRole(): ?string
     {
         return $this->getRoleNames()->first();
+    }
+
+    /**
+     * The user's own extension (at most one per user), resolved through the tenant scope.
+     */
+    public function extension(): HasOne
+    {
+        return $this->hasOne(Extension::class);
     }
 }

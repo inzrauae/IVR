@@ -3,6 +3,7 @@
 namespace App\Pbx\Contracts;
 
 use App\Models\Extension;
+use App\Models\SipTrunk;
 use App\Pbx\Data\PbxHealth;
 use App\Pbx\Exceptions\PbxException;
 
@@ -36,6 +37,49 @@ interface PbxDriver
      * @throws PbxException
      */
     public function provisionedExtensionIds(): array;
+
+    /**
+     * Set dialplan globals; an empty value clears one.
+     *
+     * @param  array<string, string>  $values
+     *
+     * @throws PbxException
+     */
+    public function setGlobals(array $values): void;
+
+    /**
+     * Create or update a SIP trunk's endpoint, AOR, auth, IP match and (optional) registration.
+     *
+     * @throws PbxException
+     */
+    public function provisionTrunk(SipTrunk $trunk): void;
+
+    /**
+     * @throws PbxException
+     */
+    public function deprovisionTrunk(string $endpointId): void;
+
+    /**
+     * Ring a supervisor's extension and, once answered, connect it to a live channel to
+     * listen, whisper to the agent, or barge in (mode: listen|whisper|barge).
+     *
+     * @throws PbxException
+     */
+    public function spy(string $supervisorSipId, string $targetChannel, string $mode): void;
+
+    /**
+     * WAV audio of a recording stored on the PBX (call recordings and voicemail).
+     *
+     * @throws PbxException
+     */
+    public function recordingAudio(string $name): string;
+
+    /**
+     * Missing recordings are not an error.
+     *
+     * @throws PbxException
+     */
+    public function deleteRecording(string $name): void;
 
     /**
      * @throws PbxException

@@ -36,7 +36,10 @@ const search = ref(props.filters.search ?? '');
 let debounce: ReturnType<typeof setTimeout> | undefined;
 watch(search, (value) => {
     clearTimeout(debounce);
-    debounce = setTimeout(() => router.get(route('platform.organizations.index'), { search: value || undefined }, { preserveState: true, replace: true }), 300);
+    debounce = setTimeout(
+        () => router.get(route('platform.organizations.index'), { search: value || undefined }, { preserveState: true, replace: true }),
+        300,
+    );
 });
 
 const suspending = ref<OrganizationRow | null>(null);
@@ -52,18 +55,29 @@ const submitSuspend = () => {
     });
 };
 
-const reactivate = (org: OrganizationRow) => router.post(route('platform.organizations.reactivate', { organization: org.id }), {}, { preserveScroll: true });
+const reactivate = (org: OrganizationRow) =>
+    router.post(route('platform.organizations.reactivate', { organization: org.id }), {}, { preserveScroll: true });
 
 const assignServer = (org: OrganizationRow, value: string) =>
-    router.put(route('platform.organizations.pbx-server', { organization: org.id }), { pbx_server_id: value ? Number(value) : null }, { preserveScroll: true });
+    router.put(
+        route('platform.organizations.pbx-server', { organization: org.id }),
+        { pbx_server_id: value ? Number(value) : null },
+        { preserveScroll: true },
+    );
 
-const selectClass = 'h-8 rounded-md border border-input bg-transparent px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
+const selectClass =
+    'h-8 rounded-md border border-input bg-transparent px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
 </script>
 
 <template>
     <Head title="Organizations" />
 
-    <AppLayout :breadcrumbs="[{ title: 'Platform', href: '/platform' }, { title: 'Organizations', href: '/platform/organizations' }]">
+    <AppLayout
+        :breadcrumbs="[
+            { title: 'Platform', href: '/platform' },
+            { title: 'Organizations', href: '/platform/organizations' },
+        ]"
+    >
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <div class="flex flex-wrap items-end justify-between gap-3">
                 <div>
@@ -97,7 +111,11 @@ const selectClass = 'h-8 rounded-md border border-input bg-transparent px-2 text
                                 </td>
                                 <td class="px-4 py-3">
                                     <StatusBadge :status="org.status" />
-                                    <div v-if="org.suspension_reason" class="mt-1 max-w-48 truncate text-xs text-muted-foreground" :title="org.suspension_reason">
+                                    <div
+                                        v-if="org.suspension_reason"
+                                        class="mt-1 max-w-48 truncate text-xs text-muted-foreground"
+                                        :title="org.suspension_reason"
+                                    >
                                         {{ org.suspension_reason }}
                                     </div>
                                 </td>

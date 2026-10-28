@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\PbxServerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PbxServer extends Model
 {
-    /** @use HasFactory<\Database\Factories\PbxServerFactory> */
+    /** @use HasFactory<PbxServerFactory> */
     use HasFactory;
 
     public const STATUS_UNKNOWN = 'unknown';
